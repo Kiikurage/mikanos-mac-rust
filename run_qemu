@@ -1,0 +1,23 @@
+#!/bin/bash -e
+
+WORK_DIR=$(mktemp -d)
+DISK_IMG=$WORK_DIR/disk.img
+MNT_ROOT=$WORK_DIR/mnt
+BOOT_LOADER=./target/x86_64-unknown-uefi/debug/bootLoader.efi
+
+# Must absolute path
+OVMF_CODE=$HOME/workspace/mikanos-build/devenv/OVMF_CODE.fd
+OVMF_VARS=$HOME/workspace/mikanos-build/devenv/OVMF_VARS.fd
+
+qemu-img create -f raw $DISK_IMG 200M
+mkfs.fat -n 'MIKAN OS' -s 2 -f 2 -R 32 -F 32 $DISK_IMG
+mkdir -p $MNT_ROOT
+hdiutil attach -imagekey diskimage-class=CRawDiskImage -mountpoint $MNT_ROOT $DISK_IMG
+mkdir -p $MNT_ROOT/EFI/BOOT
+cp $BOOT_LOADER $MNT_ROOT/EFI/BOOT/BOOTX64.EFI
+hdiutil detach $MNT_ROOT
+
+qemu-system-x86_64 \
+  -drive if=pflash,file=$OVMF_CODE \
+  -drive if=pflash,file=$OVMF_VARS \
+  -hda $DISK_IMG
